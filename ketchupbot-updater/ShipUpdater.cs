@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using ketchupbot_updater.API;
+using Serilog;
 
 namespace ketchupbot_updater;
 
@@ -50,23 +51,23 @@ public partial class ShipUpdater(MwClient bot, ApiManager apiManager)
 #if DEBUG
                 var updateStart = Stopwatch.StartNew();
 #endif
-                Logger.Log($"{GetShipIdentifier(ship)} Updating ship...", style: LogStyle.Progress);
+                Log.Information($"{GetShipIdentifier(ship)} Updating ship...");
                 await UpdateShip(ship, shipDatas.GetValueOrDefault(ship));
 #if DEBUG
                 updateStart.Stop();
-                Logger.Log($"{GetShipIdentifier(ship)} Updated ship in {updateStart.ElapsedMilliseconds}ms", style: LogStyle.Checkmark);
+                Log.Information($"{GetShipIdentifier(ship)} Updated ship in {updateStart.ElapsedMilliseconds}ms");
 #else
-                Logger.Log($"{GetShipIdentifier(ship)} Updated ship", style: LogStyle.Checkmark);
+                Log.Information($"{GetShipIdentifier(ship)} Updated ship");
 #endif
             }
             catch (Exception e)
             {
-                Logger.Log($"{GetShipIdentifier(ship)} Failed to update ship: {e.Message}", level: LogLevel.Error);
+                Log.Error(e, $"{GetShipIdentifier(ship)} Failed to update ship");
             }
         });
 
         massUpdateStart.Stop();
-        Logger.Log($"Finished updating all ships in {massUpdateStart.ElapsedMilliseconds/1000}s", style: LogStyle.Checkmark);
+        Log.Information($"Finished updating all ships in {massUpdateStart.ElapsedMilliseconds/1000}s");
     }
 
     /// <summary>
@@ -87,14 +88,13 @@ public partial class ShipUpdater(MwClient bot, ApiManager apiManager)
 
             if (shipData == null)
             {
-                Console.WriteLine("Ship not found in API data: " + ship);
+                Log.Error("Ship not found in API data: " + ship);
                 return;
             }
 
             data = shipData;
         }
         #endregion
-
 
         #region Article Fetch Logic
 #if DEBUG
@@ -105,7 +105,7 @@ public partial class ShipUpdater(MwClient bot, ApiManager apiManager)
 
 #if DEBUG
         fetchArticleStart.Stop();
-        Logger.Log($"{GetShipIdentifier(ship)} Fetched article in {fetchArticleStart.ElapsedMilliseconds}ms", style: LogStyle.Checkmark);
+        Log.Debug($"{GetShipIdentifier(ship)} Fetched article in {fetchArticleStart.ElapsedMilliseconds}ms");
 #endif
         #endregion
 
@@ -120,7 +120,7 @@ public partial class ShipUpdater(MwClient bot, ApiManager apiManager)
 
 #if DEBUG
         parsingInfoboxStart.Stop();
-        Logger.Log($"{GetShipIdentifier(ship)} Parsed infobox in {parsingInfoboxStart.ElapsedMilliseconds}ms", style: LogStyle.Checkmark);
+        Log.Debug($"{GetShipIdentifier(ship)} Parsed infobox in {parsingInfoboxStart.ElapsedMilliseconds}ms");
 #endif
         #endregion
 
@@ -133,7 +133,7 @@ public partial class ShipUpdater(MwClient bot, ApiManager apiManager)
 
 #if DEBUG
         mergeDataStart.Stop();
-        Logger.Log($"{GetShipIdentifier(ship)} Merged data in {mergeDataStart.ElapsedMilliseconds}ms", style: LogStyle.Checkmark);
+        Log.Debug($"{GetShipIdentifier(ship)} Merged data in {mergeDataStart.ElapsedMilliseconds}ms");
 #endif
         #endregion
 
@@ -146,7 +146,7 @@ public partial class ShipUpdater(MwClient bot, ApiManager apiManager)
 
 #if DEBUG
         sanitizeDataStart.Stop();
-        Logger.Log($"{GetShipIdentifier(ship)} Sanitized data in {sanitizeDataStart.ElapsedMilliseconds}ms", style: LogStyle.Checkmark);
+        Log.Debug($"{GetShipIdentifier(ship)} Sanitized data in {sanitizeDataStart.ElapsedMilliseconds}ms");
 #endif
         #endregion
 
@@ -175,7 +175,7 @@ public partial class ShipUpdater(MwClient bot, ApiManager apiManager)
 
 #if DEBUG
         wikitextConstructionStart.Stop();
-        Logger.Log($"{GetShipIdentifier(ship)} Constructed wikitext in {wikitextConstructionStart.ElapsedMilliseconds}ms", style: LogStyle.Checkmark);
+        Log.Debug($"{GetShipIdentifier(ship)} Constructed wikitext in {wikitextConstructionStart.ElapsedMilliseconds}ms");
 #endif
         #endregion
 
@@ -189,7 +189,7 @@ public partial class ShipUpdater(MwClient bot, ApiManager apiManager)
 
 #if DEBUG
         articleEditStart.Stop();
-        Logger.Log($"{GetShipIdentifier(ship)} Edited page in {articleEditStart.ElapsedMilliseconds}ms", style: LogStyle.Checkmark);
+        Log.Debug($"{GetShipIdentifier(ship)} Edited page in {articleEditStart.ElapsedMilliseconds}ms");
 #endif
         #endregion
     }

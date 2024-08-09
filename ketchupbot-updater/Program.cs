@@ -5,6 +5,9 @@ using ketchupbot_updater.Jobs;
 using Microsoft.Extensions.Configuration;
 using Quartz;
 using Quartz.Impl;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 
 namespace ketchupbot_updater;
 
@@ -59,6 +62,11 @@ public static class Program
             "Directory where the appsettings.json file is located. Defaults to the directory holding the executable."
         );
 
+        var verboseOption = new Option<bool>(
+            ["-v", "--verbose"],
+            "Enable verbose logging"
+        );
+
         #endregion
 
         var rootCommand = new RootCommand("KetchupBot Updater Component")
@@ -69,8 +77,17 @@ public static class Program
             turretScheduleOption,
             dryRunOption,
             threadCountOption,
-            secretsDirectoryOption
+            secretsDirectoryOption,
+            verboseOption
         };
+
+        var levelSwitch = new LoggingLevelSwitch();
+
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.ControlledBy(levelSwitch)
+            .Enrich.WithThreadId()
+            .WriteTo.Console()
+            .CreateLogger();
 
         rootCommand.SetHandler(async handler =>
         {
@@ -96,19 +113,25 @@ public static class Program
             IConfigurationRoot configuration = builder.Build();
 
 #if DEBUG
-            Console.WriteLine("Running in development mode");
+            Log.Information("Running in development mode");
+            levelSwitch.MinimumLevel = LogEventLevel.Debug;
             DryRun = true;
 #else
             DryRun = handler.ParseResult.GetValueForOption(dryRunOption);
-            if (DryRun) Console.WriteLine("Running in dry run mode");
+            if (DryRun) Log.Information("Running in dry run mode");
 #endif
 
+            if (handler.ParseResult.GetValueForOption(verboseOption))
+            {
+                levelSwitch.MinimumLevel = LogEventLevel.Verbose;
+                Log.Information("Enabled verbose logging");
+            }
 
             #endregion
 
             var mwClient = new MwClient(configuration["MWUSERNAME"] ?? throw new InvalidOperationException("MWUSERNAME not set"),
                 configuration["MWPASSWORD"] ?? throw new InvalidOperationException("MWPASSWORD not set"));
-            Logger.Log("Logged into the Galaxypedia", style: LogStyle.Checkmark);
+            Log.Information("Logged into the Galaxypedia");
             var apiManager = new ApiManager(configuration["GIAPI_URL"] ?? throw new InvalidOperationException("GIAPI_URL not set"));
 
             #region Scheduling Logic
@@ -197,6 +220,8 @@ public static class Program
             if (turrets) await new TurretUpdater(mwClient, apiManager).UpdateTurrets();
 
             #endregion
+
+            await Log.CloseAndFlushAsync();
         });
 
         return await rootCommand.InvokeAsync(args);
